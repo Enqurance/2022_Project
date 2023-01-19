@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2023/01/17 14:55:00
+// Create Date: 2023/01/19 15:59:30
 // Design Name: 
-// Module Name: PC
+// Module Name: DM
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,29 +20,17 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module PC(
-    input clr,
-    input clk,
-    input [31:0] in,
-    output [31:0] out,
-    input CtrlPC
+module DM(
+    input[31:0] RAddr,
+    input[7:0] ASID,
+    input[31:0] WData,
+    input[31:0] WAddr,
+    
+    output[31:0] Out
     );
     
-    reg [31:0] PCReg = 32'd0;
+    reg [31:0]mem[4095:0];
     
-    always @(posedge clr or posedge clk) begin
-		if(clr) begin
-			PCReg <= 32'b0;
-		end
-		else if(CtrlPC) begin
-			PCReg <= in;
-		end
-		else begin
-		  PCReg <= PCReg + 4;
-		end
-
-	end
-    
-    assign out = PCReg;
+    assign Out = mem[RAddr];
     
 endmodule

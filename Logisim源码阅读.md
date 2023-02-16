@@ -274,3 +274,121 @@ public void paintInstance(InstancePainter painter) {
 ​		Project类**貌似**包含了很多关于画布的细节，可以作为一个关键的切入口。
 
 ​		Project类中有Listener（监听器）
+
+
+
+根据LogisimFile创建一个新的工程：
+
+```java
+public Project(LogisimFile file) {
+    addLibraryListener(myListener);
+    setLogisimFile(file);
+  }
+```
+
+
+
+
+
+
+
+# ZYL
+
+新发现：
+
+如下注释，运行时只有一个main电路，说明其他组件的加载在openLogisimFile函数中
+
+```java
+public static Project doNew(SplashScreen monitor, boolean isStartupScreen) {
+    if (monitor != null) monitor.setProgress(SplashScreen.FILE_CREATE);
+    final var loader = new Loader(monitor);
+    final var templReader = AppPreferences.getTemplate().createStream();
+    LogisimFile file = null;
+//    try {
+//      file = loader.openLogisimFile(templReader);
+//    } catch (IOException ex) {
+//      displayException(monitor, ex);
+//    } finally {
+//      try {
+//        templReader.close();
+//      } catch (IOException ignored) {
+//      }
+//    }
+    if (file == null) file = createEmptyFile(loader, null);
+    return completeProject(monitor, loader, file, isStartupScreen);
+  }
+```
+
+openLogisimFile函数如下，当注释掉 try 的内容，尝试运行logisim发现打不开，说明关键在load函数：
+
+```java
+public LogisimFile openLogisimFile(InputStream reader) throws IOException {
+    LogisimFile ret = null;
+    try {
+      ret = LogisimFile.load(reader, this);
+    } catch (LoaderException e) {
+      return null;
+    }
+    showMessages(ret);
+    return ret;
+  }
+```
+
+load函数，可以看到catch的内容为返回null，结合上一段分析，关键在于loadSub函数：
+
+```java
+public static LogisimFile load(InputStream in, Loader loader) throws IOException {
+    try {
+      return loadSub(in, loader);
+    } catch (SAXException e) {
+      e.printStackTrace();
+      loader.showError(S.get("xmlFormatError", e.toString()));
+      return null;
+    }
+  }
+```
+
+loadSub函数，关键应该在于 xmlReader 类的readLibrary函数：
+
+```java
+public static LogisimFile loadSub(InputStream in, Loader loader) throws IOException, SAXException {
+    return (loadSub(in, loader, null));
+  }
+
+  public static LogisimFile loadSub(InputStream in, Loader loader, File file) throws IOException, SAXException {
+    // fetch first line and then reset
+    final var inBuffered = new BufferedInputStream(in);
+    final var firstLine = getFirstLine(inBuffered);
+
+    //...错误处理
+
+    final var xmlReader = new XmlReader(loader, file);
+    /* Can set the project pointer to zero as it is fixed later */
+    final var ret = xmlReader.readLibrary(inBuffered, null);
+    ret.loader = loader;
+    return ret;
+  }
+```
+
+readLibrary函数：
+
+```java
+LogisimFile readLibrary(InputStream is, Project proj) throws IOException, SAXException {
+    final var doc = loadXmlFrom(is);
+    var elt = doc.getDocumentElement();
+    elt = ensureLogisimCompatibility(elt);
+
+    considerRepairs(doc, elt);
+    final var file = new LogisimFile((Loader) loader);
+    final var context = new ReadContext(file);
+
+    context.toLogisimFile(elt, proj);
+
+    if (file.getCircuitCount() == 0) {
+      file.addCircuit(new Circuit("main", file, proj));
+    }
+    //...报错处理
+    return file;
+  }
+```
+

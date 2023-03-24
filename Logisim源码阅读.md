@@ -279,11 +279,7 @@ public void paintInstance(InstancePainter painter) {
 
 
 
-
-
-
-
-# ZYL
+# 对新建电路的跟踪
 
 新发现：
 
@@ -361,12 +357,13 @@ public static LogisimFile loadSub(InputStream in, Loader loader) throws IOExcept
   }
 ```
 
-readLibrary函数：
+readLibrary函数，保留了关键的部分：
 
 ```java
 LogisimFile readLibrary(InputStream is, Project proj) throws IOException, SAXException {
     final var doc = loadXmlFrom(is);
     var elt = doc.getDocumentElement();
+    // 检验兼容性（吧？
     elt = ensureLogisimCompatibility(elt);
 
     considerRepairs(doc, elt);
@@ -375,15 +372,124 @@ LogisimFile readLibrary(InputStream is, Project proj) throws IOException, SAXExc
 
     context.toLogisimFile(elt, proj);
 
-  	/* 在此处添加一个TOP模块 */
-  	file.addCircuit(new Circuit("TOP", file, proj));
-  	
     if (file.getCircuitCount() == 0) {
-      file.addCircuit(new Circuit("main", file, proj));
+        file.addCircuit(new Circuit("main", file, proj));
     }
     //...报错处理
+    if (!context.messages.isEmpty()) {
+        final var all = new StringBuilder();
+        for (final var msg : context.messages) {
+          all.append(msg).append("\n");
+        }
+        loader.showError(all.substring(0, all.length() - 1));
+    }
     return file;
+  }
+
+```
+
+```java
+public void addCircuit(Circuit circuit, int index) {
+    circuit.addCircuitListener(this);
+    final var tool = new AddTool(circuit.getSubcircuitFactory());
+    tools.add(index, tool);
+    if (tools.size() == 1) setMainCircuit(circuit);
+    fireEvent(LibraryEvent.ADD_TOOL, tool);
   }
 ```
 
-​		
+SubcircuitFactory方法：
+
+```java
+public SubcircuitFactory(Circuit source) {
+    super("", null, new CircuitHdlGeneratorFactory(source), true);
+    this.source = source;
+    setFacingAttribute(StdAttr.FACING);
+    setDefaultToolTip(new CircuitFeature(null));
+    setInstancePoker(SubcircuitPoker.class);
+  }
+```
+
+通过启动时打断点跟踪，发现执行到SubcircuitFactory方法时main电路参数如下![image-20230302205301499](C:\Users\Yoga\AppData\Roaming\Typora\typora-user-images\image-20230302205301499.png)
+
+位于XmlCircuitReader类的方法似乎调用了mutatorAdd方法
+
+```java
+@Override
+  protected void run(CircuitMutator mutator) {
+    for (final var circuitData : circuitsData) {
+      buildCircuit(circuitData, mutator);
+    }
+    for (final var circuitData : circuitsData) {
+      buildDynamicAppearance(circuitData);
+    }
+  }
+```
+
+尝试通过打开一个保存好的circuit文件（已有部分线路）观察内部的部件是如何加载的：
+
+- 执行了MenuFile类的actionPerformed方法（该方法有非常多的重载，目前还没定位到怎么被调用到的），调用了ProjectActions类的doOpen方法
+
+- 执行了ProjectActions类的doOpen方法，调用了Loader类的openLogisimFile方法
+
+- 执行了Loader类的openLogisimFile方法，调用了本类的loadLogisimFile方法
+
+- 执行Loader类的loadLogisimFile方法，调用了Logisim类的load方法
+
+- 执行Logisim类的load方法，调用本类的readSub方法
+
+- 执行Logisim类的loadSub方法，调用XmlReader类的readLibrary方法
+
+- 执行XmlReader类的readLibrary方法，调用了本类的toLogisimFile方法
+
+- 进入XmlReader类的toLogisimFile方法，执行到
+
+  - ```java
+    case "circuit" -> {
+        name = circElt.getAttribute("name");
+        if (name == null || "".equals(name)) {
+          addError(S.get("circNameMissingError"), "C??");
+        }
+        //new了一个新电路，调用了前面提到的SubcircuitFactory方法
+        final var circData = new CircuitData(circElt, new Circuit(name, file, proj));
+        file.addCircuit(circData.circuit);
+        circData.knownComponents = loadKnownComponents(circElt, isHolyCrossFile,
+                    isEvolutionFile);
+        //这一段推测可能是嵌套，电路套电路
+        for (Element appearElt : XmlIterator.forChildElements(circElt, "appear")) {
+          loadAppearance(appearElt, circData, name + ".appear");
+        }
+        for (final var boardMap : XmlIterator.forChildElements(circElt, "boardmap")) {
+          final var boardName = boardMap.getAttribute("boardname");
+          if (StringUtil.isNullOrEmpty(boardName))
+            continue;
+          loadMap(boardMap, boardName, circData.circuit);
+        }
+        circuitsData.add(circData);
+      }
+    ```
+
+- 运行到XmlCircuitReader类的run方法，执行了XmlCircuitReader类的buildCircuit方法
+
+- buildCircuit方法执行了mutator.add(dest, comp);语句
+
+- 运行到CircuitMutatorImpl类，调用了add方法，其中调用了mutatorAdd方法
+
+- 回到XmlCircuitReader类的run方法，继续执行buildDynamicAppearance方法（好像不是用来画具体的组件
+
+- 回到前面的toLogisimFile方法
+
+- ……后续没有断点跟踪
+
+
+
+截至目前，执行到ProjectActions类的doOpen方法中的：
+
+```java
+try {
+      final var lib = loader.openLogisimFile(f);
+    // .......
+}
+```
+
+还没有进行绘画过程，推测上述过程应该是将电路的基本信息加载好，logisimFile实例“lib”中，后续可能对这个file文件进行绘图

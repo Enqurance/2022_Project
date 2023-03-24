@@ -267,24 +267,15 @@ public void paintInstance(InstancePainter painter) {
   }
 ```
 
-​		通过这个类可以唤醒画布框架，更进一步的内容可以考察Project类。
+​		通过这个类可以唤醒画布框架。
 
-### 3.Project类
+### 3.Circuit类
 
-​		Project类**貌似**包含了很多关于画布的细节，可以作为一个关键的切入口。
+​		Circuit类相当于Logisim中的每一个元件，其内部可以包含很多Component，以及Wire。在工程初始化的时候添加Circuit的方法见ZYL的文档。
 
-​		Project类中有Listener（监听器）
+#### A.mutatorAdd()
 
-
-
-根据LogisimFile创建一个新的工程：
-
-```java
-public Project(LogisimFile file) {
-    addLibraryListener(myListener);
-    setLogisimFile(file);
-  }
-```
+​		每添加一个元件，或是一根线，都会调用此方法。
 
 
 
@@ -384,6 +375,9 @@ LogisimFile readLibrary(InputStream is, Project proj) throws IOException, SAXExc
 
     context.toLogisimFile(elt, proj);
 
+  	/* 在此处添加一个TOP模块 */
+  	file.addCircuit(new Circuit("TOP", file, proj));
+  	
     if (file.getCircuitCount() == 0) {
       file.addCircuit(new Circuit("main", file, proj));
     }
@@ -392,3 +386,4 @@ LogisimFile readLibrary(InputStream is, Project proj) throws IOException, SAXExc
   }
 ```
 
+​		

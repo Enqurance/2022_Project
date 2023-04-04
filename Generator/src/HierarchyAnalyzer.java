@@ -14,8 +14,8 @@ public class HierarchyAnalyzer {
         HashMap<String, VerilogModule> modules = new HashMap<>();
         String projectPath = "VerilogProject";
         verilogFiles.addAll(getFileNames(projectPath));
-        addModuleClasses();
-        printModuleClass();
+//        addModuleClasses();
+//        printModuleClass();
         return modules;
     }
 

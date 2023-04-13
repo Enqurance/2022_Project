@@ -34,7 +34,8 @@ public class Lexer {
         reserved.put("always", SyntaxKind.ALWAYS_TK);
     }
 
-    private Lexer() {}
+    private Lexer() {
+    }
 
     public static Lexer getInstance() {
         return lexer;
@@ -48,7 +49,7 @@ public class Lexer {
         token = "";
     }
 
-    public void updateTokens (String s) {
+    public void updateTokens(String s) {
         line = s.trim();
         if (!begin) {
             int module_start = line.indexOf("module");
@@ -107,10 +108,7 @@ public class Lexer {
             tokens.add(new Token("'" + ch, l_num, SyntaxKind.HEX_TK));
         } else if (ch == '?') {
             tokens.add(new Token("?", l_num, SyntaxKind.QUESTION));
-        }
-
-
-        else if (ch == ',') {
+        } else if (ch == ',') {
             tokens.add(new Token(",", l_num, SyntaxKind.COMMA));
         } else if (ch == ';') {
             tokens.add(new Token(";", l_num, SyntaxKind.SEMICOLON));
@@ -289,5 +287,12 @@ public class Lexer {
 
     public ArrayList<Token> getTokens() {
         return tokens;
+    }
+
+    public static void printAllNodes() {
+        ArrayList<Token> ts = Lexer.getInstance().getTokens();
+        for (Token token : ts) {
+            System.out.println(token.content + " " + token.kind);
+        }
     }
 }

@@ -20,11 +20,11 @@ public class VerilogCompiler {
             InputStreamReader inReader = new InputStreamReader(in);
             BufferedReader bufReader = new BufferedReader(inReader);
 
-            String line = null;
+            String line;
             while ((line = bufReader.readLine()) != null) {
                 lexer.updateTokens(line);
             }
-            lexer.getTokens().add(new Token("", 0, SyntaxKind.EOF));
+            lexer.getTokens().add(new Token("END", 0, SyntaxKind.EOF));
 
             bufReader.close();
             inReader.close();

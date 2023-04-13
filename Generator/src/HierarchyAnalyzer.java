@@ -16,6 +16,7 @@ public class HierarchyAnalyzer {
         verilogFiles.addAll(getFileNames(projectPath));
 //        addModuleClasses();
 //        printModuleClass();
+        createModuleMap();
         return modules;
     }
 
@@ -65,6 +66,10 @@ public class HierarchyAnalyzer {
         return verilogFiles;
     }
 
+    public HashSet<String> getModuleClasses() {
+        return moduleClasses;
+    }
+
     public void printModuleClass() {
         for (String s : moduleClasses) {
             System.out.println(s);
@@ -78,7 +83,11 @@ public class HierarchyAnalyzer {
     }
 
     public void analyzeSingleFile(String filename) {
-
+        VerilogCompiler verilogCompiler = new VerilogCompiler("alu.v");
+        verilogCompiler.compiling();
+        Parser parser = new Parser(Lexer.getInstance().getTokens(), moduleClasses);
+        parser.parse();
+//        Lexer.printAllNodes();
     }
 }
 
